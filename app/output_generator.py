@@ -1,21 +1,11 @@
-# app/output_generator.py
 import json
 
-def generate_json_output(headings, output_path):
-    """
-    Formats the list of headings into the required JSON structure and saves it.
-    """
-    # The spec requires a root object with one key, "outline"
-    output_data = {
-        "outline": []
-    }
-    
-    for heading in headings:
-        output_data["outline"].append({
-            "level": heading["level"],
-            "text": heading["text"],
-            "page": heading["page_num"]
-        })
-        
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(output_data, f, indent=4)
+def save_to_json(data, output_path):
+    """Saves a dictionary directly to a JSON file."""
+    try:
+        # The 'data' object is already in the perfect format, so we just save it.
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        print(f"Successfully created {output_path}")
+    except Exception as e:
+        print(f"Error saving JSON file to {output_path}: {e}")

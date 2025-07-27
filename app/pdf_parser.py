@@ -1,47 +1,54 @@
-# app/pdf_parser.py
-import fitz  # PyMuPDF
-import collections
+import pdfplumber
 
-def parse_pdf_for_text_properties(pdf_path):
+def parse_pdf(pdf_path):
     """
-    Opens a PDF and extracts text blocks with their properties.
-    
-    Returns:
-        A tuple containing:
-        - A list of all text spans (dictionaries with text, font_size, font_name, bbox, page_num).
-        - A dictionary with document-level statistics (most common font size and name).
+    Opens a PDF and extracts a list of text spans by grouping words.
+    This version uses the pdfplumber library.
     """
-    doc = fitz.open(pdf_path)
     all_spans = []
-    font_sizes = collections.Counter()
-    font_names = collections.Counter()
-    
-    for page_num, page in enumerate(doc):
-        # Using get_text("dict") gives us structured data
-        blocks = page.get_text("dict", flags=fitz.TEXTFLAGS_DEFAULT)["blocks"]
-        for block in blocks:
-            if "lines" in block:
-                for line in block["lines"]:
-                    for span in line["spans"]:
-                        # Collect properties for each text span
-                        span_info = {
-                            "text": span["text"].strip(),
-                            "font_size": round(span["size"]),
-                            "font_name": span["font"],
-                            "bbox": span["bbox"], # (x0, y0, x1, y1)
-                            "page_num": page_num + 1
-                        }
-                        if span_info["text"]:
-                            all_spans.append(span_info)
-                            font_sizes[span_info["font_size"]] += 1
-                            font_names[span_info["font_name"]] += 1
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for i, page in enumerate(pdf.pages):
+                # Extract words and group them into lines/spans
+                words = page.extract_words(x_tolerance=3, y_tolerance=3, keep_blank_chars=False, use_text_flow=True, extra_attrs=["size", "fontname"])
 
-    doc.close()
+                if not words:
+                    continue
 
-    # Calculate statistics
-    stats = {
-        "most_common_size": font_sizes.most_common(1)[0][0] if font_sizes else 12,
-        "most_common_font": font_names.most_common(1)[0][0] if font_names else "Helvetica"
-    }
+                # Group words with the same properties into a single span
+                current_span = words[0]
+                current_span['page'] = i + 1
 
-    return all_spans, stats
+                for w in words[1:]:
+                    # Check if the next word has the same font and size, and is on the same line
+                    if (w['fontname'] == current_span['fontname'] and 
+                        abs(w['size'] - current_span['size']) < 0.1 and 
+                        abs(w['top'] - current_span['top']) < 5):
+                        current_span['text'] += ' ' + w['text'] # Merge text
+                    else:
+                        # End of the current span, save it
+                        all_spans.append({
+                            "text": current_span.get("text"),
+                            "size": current_span.get("size"),
+                            "font": current_span.get("fontname"),
+                            "page": current_span.get("page"),
+                        })
+                        # Start a new span
+                        current_span = w
+                        current_span['page'] = i + 1
+
+                # Add the very last span
+                all_spans.append({
+                    "text": current_span.get("text"),
+                    "size": current_span.get("size"),
+                    "font": current_span.get("fontname"),
+                    "page": current_span.get("page"),
+                })
+
+    except Exception as e:
+        print(f"---! ERROR USING PDFPLUMBER !---")
+        print(f"The error is: {e}")
+        print("---------------------------------")
+        return []
+
+    return all_spans
