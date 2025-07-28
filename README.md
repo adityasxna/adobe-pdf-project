@@ -37,7 +37,7 @@ Navigate to the project's root directory in your terminal and run the following 
 
 ```bash
 docker build -t adobe-hackathon-1a .
-
+```
 ### 2. Run the Docker Container
 
 Before running, make sure your sample PDFs are placed inside the /app/input directory.
@@ -48,5 +48,5 @@ Use the following command to run the container. This command maps your local inp
 
 ```bash
 docker run --rm -v "/$(pwd)/app/input:/app/input" -v "/$(pwd)/app/output:/app/output" adobe-hackathon-1a
-
+```
 After the script finishes, the generated JSON outline files will appear in your local /app/output directory.
