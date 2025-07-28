@@ -3,7 +3,6 @@ import json
 def save_to_json(data, output_path):
     """Saves a dictionary directly to a JSON file."""
     try:
-        # The 'data' object is already in the perfect format, so we just save it.
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         print(f"Successfully created {output_path}")

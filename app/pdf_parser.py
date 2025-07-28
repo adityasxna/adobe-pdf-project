@@ -1,54 +1,35 @@
-import pdfplumber
+import fitz  # PyMuPDF
 
 def parse_pdf(pdf_path):
     """
-    Opens a PDF and extracts a list of text spans by grouping words.
-    This version uses the pdfplumber library.
+    Extracts structured lines of text from a PDF, preserving essential metadata
+    including font flags for bold/italic detection.
     """
-    all_spans = []
+    lines = []
     try:
-        with pdfplumber.open(pdf_path) as pdf:
-            for i, page in enumerate(pdf.pages):
-                # Extract words and group them into lines/spans
-                words = page.extract_words(x_tolerance=3, y_tolerance=3, keep_blank_chars=False, use_text_flow=True, extra_attrs=["size", "fontname"])
+        doc = fitz.open(pdf_path)
+        for page_num, page in enumerate(doc, start=1):
+            blocks = page.get_text("dict").get("blocks", [])
+            for block in blocks:
+                if block.get("type") == 0:  # Text blocks
+                    for line in block.get("lines", []):
+                        if not line.get("spans"):
+                            continue
+                        
+                        first_span = line["spans"][0]
+                        line_text = " ".join([s["text"] for s in line["spans"]]).strip()
 
-                if not words:
-                    continue
-
-                # Group words with the same properties into a single span
-                current_span = words[0]
-                current_span['page'] = i + 1
-
-                for w in words[1:]:
-                    # Check if the next word has the same font and size, and is on the same line
-                    if (w['fontname'] == current_span['fontname'] and 
-                        abs(w['size'] - current_span['size']) < 0.1 and 
-                        abs(w['top'] - current_span['top']) < 5):
-                        current_span['text'] += ' ' + w['text'] # Merge text
-                    else:
-                        # End of the current span, save it
-                        all_spans.append({
-                            "text": current_span.get("text"),
-                            "size": current_span.get("size"),
-                            "font": current_span.get("fontname"),
-                            "page": current_span.get("page"),
-                        })
-                        # Start a new span
-                        current_span = w
-                        current_span['page'] = i + 1
-
-                # Add the very last span
-                all_spans.append({
-                    "text": current_span.get("text"),
-                    "size": current_span.get("size"),
-                    "font": current_span.get("fontname"),
-                    "page": current_span.get("page"),
-                })
-
+                        if line_text:
+                            lines.append({
+                                "text": line_text,
+                                "size": first_span["size"],
+                                "font": first_span["font"],
+                                "flags": first_span["flags"], # Flags for bold/italic
+                                "page": page_num,
+                                "bbox": line['bbox']  # Positional data (x0, y0, x1, y1)
+                            })
     except Exception as e:
-        print(f"---! ERROR USING PDFPLUMBER !---")
-        print(f"The error is: {e}")
-        print("---------------------------------")
+        print(f"Error parsing PDF {pdf_path}: {e}")
         return []
-
-    return all_spans
+    
+    return lines

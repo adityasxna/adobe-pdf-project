@@ -1,24 +1,23 @@
-# Dockerfile
+# Dockerfile for Round 1B
 
-# Use a specific, lightweight Python base image.
-# Using linux/amd64 ensures compatibility with most cloud judging environments.
+# Use the same base image for consistency
 FROM --platform=linux/amd64 python:3.9-slim-buster
 
-# Set the working directory inside the container to /app
-# All subsequent commands will run from this directory.
 WORKDIR /app
 
-# Copy the requirements file first. Docker caches this layer.
-# If requirements.txt doesn't change, this step won't re-run on future builds, speeding things up.
+# Copy requirements file
 COPY requirements.txt .
 
-# Install the Python dependencies specified in requirements.txt.
-# --no-cache-dir saves space in the final image.
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire 'app' directory (containing all your Python code) into the container's /app directory.
+# --- Key Difference for Part 1B ---
+# Copy the pre-downloaded models into the image.
+# This makes the model available offline inside the container.
+COPY ./models/ /app/models/
+
+# Copy the application code
 COPY ./app/ .
 
-# This is the command that will be executed when the container starts.
-# It runs your main script.
+# Run the main script for Round 1B
 CMD ["python", "main.py"]
